@@ -2,73 +2,161 @@
 
 Your notes, your terminal.
 
-A macOS CLI for Apple Notes -- list, read, create, edit, delete, and search notes without leaving the command line. Built for humans and AI agents alike.
+A macOS CLI for Apple Notes — list, read, create, edit, delete, and search notes without leaving the command line. Built for humans and AI agents alike.
 
 ## Requirements
+
 - macOS 14+ (Sonoma or later)
 - Automation permission for Notes.app (System Settings > Privacy & Security > Automation)
 
 ## Install
 
+### Homebrew
+
+```bash
+brew install wangwalk/tap/inotes
+```
+
 ### From source
+
 ```bash
 make build
 # binary at ./bin/inotes
 ```
 
 Or with SwiftPM directly:
+
 ```bash
 swift build -c release
 ```
 
-## Usage
+## Quick start
+
 ```bash
-inotes                                # show recent notes (default)
+inotes                    # show recent iCloud notes
+inotes accounts           # list all accounts
+inotes show all           # all iCloud notes
+inotes folders            # list folders with note counts
+inotes read 1             # read full note by index
+inotes search "meeting"   # search by title or content
+```
+
+## Commands
+
+### show — List notes
+
+```bash
+inotes                                # recent notes (default)
 inotes today                          # notes modified today
 inotes show week                      # notes modified this week
 inotes show all                       # all notes
 inotes show --folder Work             # notes in a specific folder
 inotes show recent --limit 10         # limit results
+```
 
-inotes folders                        # list all folders with note counts
+### folders — List folders
 
-inotes read 1                         # read full note by index
-inotes read A3F2                      # read full note by ID prefix
+```bash
+inotes folders                        # all folders with note counts
+inotes folders --json                 # JSON output
+```
 
-inotes add --title "Meeting Notes" --body "Discussed Q1 plans" --folder Work
-inotes add -t "Shopping list" -b "Milk, bread, eggs"
+### accounts — List accounts
 
+```bash
+inotes accounts                       # list all accounts (iCloud, Exchange, IMAP, etc.)
+inotes accounts --json                # JSON output
+```
+
+### read — Read full note
+
+```bash
+inotes read 1                         # read by index
+inotes read A3F2                      # read by ID prefix
+```
+
+### add — Create a note
+
+```bash
+inotes add --title "Meeting Notes"
+inotes add -t "Ideas" -b "Draft outline" -f Projects
+inotes add --title "Shopping list" --body "Milk, bread, eggs"
+```
+
+When run interactively (without `--no-input`), missing title/body/folder will be prompted.
+
+### edit — Modify a note
+
+```bash
 inotes edit 1 --title "Updated Title"
 inotes edit 2 --body "New content" --folder Projects
+inotes edit 5 -t "Title" -b "Body" -f Work
+```
 
+### delete — Delete a note
+
+```bash
 inotes delete 1                       # delete with confirmation
 inotes delete 1 --force               # skip confirmation
 inotes delete 2 --dry-run             # preview without deleting
+```
 
+### search — Search notes
+
+```bash
 inotes search "quarterly review"
 inotes search "TODO" --folder Work --limit 10
+```
 
+### status — Check permission
+
+```bash
 inotes status                         # check automation permission
 ```
 
-## Note identification
+## Multi-account support
 
-Notes are identified by index or ID prefix:
-- **Index** -- a 1-based position from the most recent `show` output (e.g., `1`, `2`, `3`).
-- **ID prefix** -- the first 4+ characters of a note's internal ID (e.g., `A3F2`).
-
-## Output formats
-- Default: human-readable table with indices.
-- `--json` (`-j`): machine-readable JSON arrays/objects.
-- `--plain`: stable tab-separated lines for scripting.
-- `--quiet` (`-q`): counts only.
-
-### JSON output examples
+By default, inotes only shows notes from your **iCloud** account. Use `--account` or `--all-accounts` to access other accounts.
 
 ```bash
-# notes list as JSON
+# List available accounts
+inotes accounts
+
+# Filter by account name (case-insensitive substring match)
+inotes show all --account Exchange
+inotes show all -a gmail
+inotes folders --account iCloud
+inotes search "draft" -a Exchange
+
+# Show notes from all accounts
+inotes show all --all-accounts
+inotes folders --all-accounts
+```
+
+The `-a`/`--account` option is available on all commands.
+
+## Note identification
+
+Notes are identified by **index** or **ID prefix**:
+
+- **Index** — a 1-based position from the most recent `show` output (e.g., `1`, `2`, `3`).
+- **ID prefix** — the first 4+ characters of a note's internal ID (e.g., `A3F2`).
+
+## Output formats
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| *(default)* | | Human-readable table with indices |
+| `--json` | `-j` | Machine-readable JSON |
+| `--plain` | | Tab-separated lines for scripting |
+| `--quiet` | `-q` | Count only |
+
+### JSON examples
+
+```bash
 inotes show --json
 ```
+
 ```json
 [
   {
@@ -83,56 +171,61 @@ inotes show --json
 ```
 
 ```bash
-# folders as JSON
-inotes folders --json
+inotes accounts --json
 ```
+
 ```json
 [
   {
-    "id" : "x-coredata://AB12CD34-...",
-    "name" : "Notes",
-    "noteCount" : 42
+    "id" : "x-coredata://0D80089A-.../ICAccount/p3",
+    "name" : "iCloud"
+  },
+  {
+    "id" : "x-coredata://76BBD5A1-.../EWSAccount/p3",
+    "name" : "Exchange"
   }
 ]
 ```
 
-```bash
-# permission status as JSON
-inotes status --json
-```
-```json
-{
-  "automation_permission" : "granted",
-  "authorized" : true
-}
-```
+## Global options
 
-## Global flags
+These options are available on all commands:
 
-| Flag | Short | Description |
-|------|-------|-------------|
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--account <name>` | `-a` | Filter by account name |
+| `--all-accounts` | | Include notes from all accounts (default: iCloud only) |
 | `--json` | `-j` | Emit machine-readable JSON output |
 | `--plain` | | Emit stable tab-separated output |
 | `--quiet` | `-q` | Only emit count output |
 | `--no-color` | | Disable colored output |
 | `--no-input` | | Disable interactive prompts (for scripts and agents) |
+| `--version` | `-V` | Print version |
+| `--help` | `-h` | Print help |
 
 ## Permissions
 
 inotes uses AppleScript (`osascript`) to communicate with Notes.app. On first run, macOS will prompt you to allow Automation access.
 
 If you see "Permission denied" errors:
+
 1. Open **System Settings > Privacy & Security > Automation**.
 2. Find your terminal application (Terminal.app, iTerm, etc.).
 3. Enable access to **Notes**.
 4. Restart your terminal.
-5. Try again.
-
-Run `inotes status` to check the current permission state.
+5. Run `inotes status` to verify.
 
 ## Core library
 
-The reusable Swift core lives in `Sources/INotesCore` and is consumed by the CLI target. Apps can depend on the `INotesCore` library target directly.
+The reusable Swift core lives in `Sources/INotesCore` and can be consumed as a library dependency:
+
+```swift
+// Package.swift
+.package(url: "https://github.com/wangwalk/inotes.git", from: "0.1.0")
+
+// target dependency
+.product(name: "INotesCore", package: "inotes")
+```
 
 ## License
 
