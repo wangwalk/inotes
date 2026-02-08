@@ -26,7 +26,8 @@ enum ReadCommand {
       }
 
       let store = NotesStore()
-      let notes = try await store.notes(in: nil, limit: 100)
+      var notes = try await store.notes(in: nil, limit: 100)
+      if !runtime.allAccounts { notes = notes.filter(\.isICloud) }
       let resolved = try IDResolver.resolve([input], from: notes)
 
       guard let note = resolved.first else {
