@@ -15,7 +15,8 @@ enum FoldersCommand {
       ]
     ) { _, runtime in
       let store = NotesStore()
-      let folders = try await store.folders()
+      var folders = try await store.folders()
+      if !runtime.allAccounts { folders = folders.filter(\.isICloud) }
 
       let summaries = folders.map { folder in
         FolderSummary(

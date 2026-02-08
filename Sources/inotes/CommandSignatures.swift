@@ -28,6 +28,11 @@ enum CommandSignatures {
         names: [.long("no-input")],
         help: "Disable interactive prompts"
       ),
+      .make(
+        label: "allAccounts",
+        names: [.long("all-accounts")],
+        help: "Include notes from all accounts (default: iCloud only)"
+      ),
     ]
   }
 

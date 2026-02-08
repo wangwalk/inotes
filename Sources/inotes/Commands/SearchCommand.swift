@@ -53,7 +53,8 @@ enum SearchCommand {
       }
 
       let store = NotesStore()
-      let notes = try await store.search(query: query, in: folderName)
+      var notes = try await store.search(query: query, in: folderName)
+      if !runtime.allAccounts { notes = notes.filter(\.isICloud) }
       let limited = Array(notes.prefix(limit))
       OutputRenderer.printNotes(limited, format: runtime.outputFormat)
     }

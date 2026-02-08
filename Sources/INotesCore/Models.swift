@@ -24,6 +24,9 @@ public struct NoteItem: Codable, Sendable, Equatable, Identifiable {
     self.creationDate = creationDate
     self.modificationDate = modificationDate
   }
+
+  /// Whether this note belongs to the local iCloud account (vs IMAP/Exchange)
+  public var isICloud: Bool { id.contains("/ICNote/") }
 }
 
 /// Represents a folder in Apple Notes
@@ -37,6 +40,9 @@ public struct NoteFolder: Codable, Sendable, Equatable, Identifiable {
     self.name = name
     self.noteCount = noteCount
   }
+
+  /// Whether this folder belongs to the local iCloud account (vs IMAP/Exchange)
+  public var isICloud: Bool { id.contains("/ICFolder/") }
 }
 
 /// Draft for creating a new note
