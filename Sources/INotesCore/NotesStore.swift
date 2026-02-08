@@ -33,6 +33,32 @@ public actor NotesStore {
     self.scriptRunner = ScriptRunner()
   }
 
+  // MARK: - Accounts
+
+  /// Lists all accounts in Notes
+  public func accounts() async throws -> [NoteAccount] {
+    let script = """
+      tell application "Notes"
+        set output to ""
+        repeat with a in accounts
+          set output to output & (id of a) & "\(fieldSep)" & (name of a) & "\(recordSep)"
+        end repeat
+        return output
+      end tell
+      """
+
+    let result = try await scriptRunner.run(script)
+    guard !result.isEmpty else { return [] }
+
+    return result.components(separatedBy: recordSep).compactMap { record in
+      let trimmed = record.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !trimmed.isEmpty else { return nil }
+      let parts = trimmed.components(separatedBy: fieldSep)
+      guard parts.count >= 2 else { return nil }
+      return NoteAccount(id: parts[0], name: parts[1])
+    }
+  }
+
   // MARK: - Folders
 
   /// Lists all folders in Notes

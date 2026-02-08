@@ -4,6 +4,7 @@ public enum INotesError: LocalizedError, Sendable, Equatable {
   case permissionDenied
   case noteNotFound(String)
   case folderNotFound(String)
+  case accountNotFound(String)
   case ambiguousIdentifier(String, matches: [String])
   case invalidIdentifier(String)
   case scriptError(String)
@@ -28,6 +29,8 @@ public enum INotesError: LocalizedError, Sendable, Equatable {
       return "Note not found: \"\(id)\"."
     case .folderNotFound(let name):
       return "Folder not found: \"\(name)\"."
+    case .accountNotFound(let name):
+      return "Account not found: \"\(name)\". Use 'inotes accounts' to list available accounts."
     case .ambiguousIdentifier(let input, let matches):
       return "Identifier \"\(input)\" matches multiple notes: \(matches.joined(separator: ", "))."
     case .invalidIdentifier(let input):

@@ -13,6 +13,7 @@ struct CommandRouter {
     self.specs = [
       ShowCommand.spec,
       FoldersCommand.spec,
+      AccountsCommand.spec,
       ReadCommand.spec,
       AddCommand.spec,
       EditCommand.spec,
@@ -141,6 +142,8 @@ struct CommandRouter {
       return "Note not found: \(id)"
     case .folderNotFound(let name):
       return "Folder not found: \(name)"
+    case .accountNotFound(let name):
+      return "Account not found: \(name). Use 'inotes accounts' to list available accounts."
     case .ambiguousIdentifier(let input, let matches):
       return "Identifier \"\(input)\" matches multiple notes: \(matches.joined(separator: ", "))"
     case .invalidIdentifier(let input):

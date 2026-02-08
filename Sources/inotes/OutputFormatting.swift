@@ -54,6 +54,27 @@ enum OutputRenderer {
     }
   }
 
+  static func printAccounts(_ accounts: [NoteAccount], format: OutputFormat) {
+    switch format {
+    case .standard:
+      guard !accounts.isEmpty else {
+        Swift.print("No accounts found")
+        return
+      }
+      for (index, account) in accounts.enumerated() {
+        Swift.print("[\(index + 1)] \(account.name)")
+      }
+    case .plain:
+      for account in accounts {
+        Swift.print("\(account.id)\t\(account.name)")
+      }
+    case .json:
+      printJSON(accounts)
+    case .quiet:
+      Swift.print(accounts.count)
+    }
+  }
+
   static func printDeleteResult(_ count: Int, format: OutputFormat) {
     switch format {
     case .standard:

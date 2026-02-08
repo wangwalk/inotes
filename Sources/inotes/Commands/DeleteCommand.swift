@@ -40,7 +40,7 @@ enum DeleteCommand {
 
       let store = NotesStore()
       var notes = try await store.notes(in: nil, limit: 100)
-      if !runtime.allAccounts { notes = notes.filter(\.isICloud) }
+      notes = try await AccountFilter.apply(runtime: runtime, store: store, notes: notes)
       let resolved = try IDResolver.resolve([input], from: notes)
 
       guard let note = resolved.first else {

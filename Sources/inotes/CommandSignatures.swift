@@ -36,10 +36,21 @@ enum CommandSignatures {
     ]
   }
 
+  static func runtimeOptions() -> [OptionDefinition] {
+    [
+      .make(
+        label: "account",
+        names: [.short("a"), .long("account")],
+        help: "Filter by account name (e.g. iCloud, Exchange)",
+        parsing: .singleValue
+      ),
+    ]
+  }
+
   static func withRuntimeFlags(_ signature: CommandSignature) -> CommandSignature {
     CommandSignature(
       arguments: signature.arguments,
-      options: signature.options,
+      options: signature.options + runtimeOptions(),
       flags: signature.flags + runtimeFlags(),
       optionGroups: signature.optionGroups
     )

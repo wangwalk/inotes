@@ -67,7 +67,7 @@ enum ShowCommand {
 
       let store = NotesStore()
       var notes = try await store.notes(in: folderName, limit: limit)
-      if !runtime.allAccounts { notes = notes.filter(\.isICloud) }
+      notes = try await AccountFilter.apply(runtime: runtime, store: store, notes: notes)
       let filtered = filter.apply(to: notes)
       OutputRenderer.printNotes(filtered, format: runtime.outputFormat)
     }
