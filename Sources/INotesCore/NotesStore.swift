@@ -1,5 +1,30 @@
 import Foundation
 
+// Separators used between AppleScript output fields and records.
+// Body text may contain newlines and tabs, so we use unique delimiters.
+private let fieldSep = "<<F>>"
+private let recordSep = "<<R>>"
+private let newlinePlaceholder = "<<NL>>"
+
+/// Helper AppleScript snippet that sanitizes a note's plaintext body.
+/// Replaces newlines with a placeholder so they don't break record parsing.
+private let sanitizeBody = """
+  set noteBody to my replaceText(noteBody, linefeed, "\(newlinePlaceholder)")
+  set noteBody to my replaceText(noteBody, return, "\(newlinePlaceholder)")
+  """
+
+/// AppleScript text replacement subroutine.
+private let replaceTextHandler = """
+  on replaceText(theText, old, new)
+    set {TID, AppleScript's text item delimiters} to {AppleScript's text item delimiters, old}
+    set parts to text items of theText
+    set AppleScript's text item delimiters to new
+    set theText to parts as text
+    set AppleScript's text item delimiters to TID
+    return theText
+  end replaceText
+  """
+
 /// Main interface to Apple Notes via AppleScript
 public actor NotesStore {
   private let scriptRunner: ScriptRunner
@@ -7,6 +32,8 @@ public actor NotesStore {
   public init() {
     self.scriptRunner = ScriptRunner()
   }
+
+  // MARK: - Folders
 
   /// Lists all folders in Notes
   public func folders() async throws -> [NoteFolder] {
@@ -17,7 +44,7 @@ public actor NotesStore {
           set folderID to id of f
           set folderName to name of f
           set folderCount to count of notes in f
-          set output to output & folderID & tab & folderName & tab & folderCount & linefeed
+          set output to output & folderID & "\(fieldSep)" & folderName & "\(fieldSep)" & folderCount & "\(recordSep)"
         end repeat
         return output
       end tell
@@ -27,13 +54,14 @@ public actor NotesStore {
     return parseFolders(result)
   }
 
+  // MARK: - Notes
+
   /// Lists notes in a folder (or all notes if folder is nil)
   public func notes(in folder: String? = nil, limit: Int = 100) async throws -> [NoteItem] {
     let script: String
 
     if let folder = folder {
-      // Escape single quotes in folder name for AppleScript
-      let escapedFolder = folder.replacingOccurrences(of: "'", with: "\\'")
+      let escapedFolder = folder.replacingOccurrences(of: "\"", with: "\\\"")
       script = """
         tell application "Notes"
           try
@@ -41,42 +69,51 @@ public actor NotesStore {
           on error
             error "Folder not found: \(escapedFolder)"
           end try
-          set notesList to notes of targetFolder
+          set folderLabel to name of targetFolder
           set output to ""
           set counter to 0
-          repeat with n in notesList
-            if counter ≥ \(limit) then exit repeat
-            set noteID to id of n
-            set noteName to name of n
-            set noteBody to plaintext of n
-            set folderName to name of container of n
-            set createdDate to creation date of n
-            set modifiedDate to modification date of n
-            set output to output & noteID & tab & noteName & tab & noteBody & tab & folderName & tab & createdDate & tab & modifiedDate & linefeed
-            set counter to counter + 1
+          repeat with n in notes of targetFolder
+            if counter \u{2265} \(limit) then exit repeat
+            try
+              set noteID to id of n
+              set noteName to name of n
+              set noteBody to plaintext of n
+              \(sanitizeBody)
+              set createdDate to creation date of n
+              set modifiedDate to modification date of n
+              set output to output & noteID & "\(fieldSep)" & noteName & "\(fieldSep)" & noteBody & "\(fieldSep)" & folderLabel & "\(fieldSep)" & createdDate & "\(fieldSep)" & modifiedDate & "\(recordSep)"
+              set counter to counter + 1
+            end try
           end repeat
           return output
         end tell
+        \(replaceTextHandler)
         """
     } else {
       script = """
         tell application "Notes"
-          set allNotes to notes
           set output to ""
           set counter to 0
-          repeat with n in allNotes
-            if counter ≥ \(limit) then exit repeat
-            set noteID to id of n
-            set noteName to name of n
-            set noteBody to plaintext of n
-            set folderName to name of container of n
-            set createdDate to creation date of n
-            set modifiedDate to modification date of n
-            set output to output & noteID & tab & noteName & tab & noteBody & tab & folderName & tab & createdDate & tab & modifiedDate & linefeed
-            set counter to counter + 1
+          repeat with f in folders
+            set folderName to name of f
+            repeat with n in notes of f
+              if counter \u{2265} \(limit) then exit repeat
+              try
+                set noteID to id of n
+                set noteName to name of n
+                set noteBody to plaintext of n
+                \(sanitizeBody)
+                set createdDate to creation date of n
+                set modifiedDate to modification date of n
+                set output to output & noteID & "\(fieldSep)" & noteName & "\(fieldSep)" & noteBody & "\(fieldSep)" & folderName & "\(fieldSep)" & createdDate & "\(fieldSep)" & modifiedDate & "\(recordSep)"
+                set counter to counter + 1
+              end try
+            end repeat
+            if counter \u{2265} \(limit) then exit repeat
           end repeat
           return output
         end tell
+        \(replaceTextHandler)
         """
     }
 
@@ -86,8 +123,7 @@ public actor NotesStore {
 
   /// Gets a single note by ID
   public func note(id: String) async throws -> NoteItem {
-    // Escape single quotes in ID for AppleScript
-    let escapedID = id.replacingOccurrences(of: "'", with: "\\'")
+    let escapedID = id.replacingOccurrences(of: "\"", with: "\\\"")
     let script = """
       tell application "Notes"
         try
@@ -98,11 +134,16 @@ public actor NotesStore {
         set noteID to id of targetNote
         set noteName to name of targetNote
         set noteBody to plaintext of targetNote
-        set folderName to name of container of targetNote
+        \(sanitizeBody)
+        set folderName to "Notes"
+        try
+          set folderName to name of container of targetNote
+        end try
         set createdDate to creation date of targetNote
         set modifiedDate to modification date of targetNote
-        return noteID & tab & noteName & tab & noteBody & tab & folderName & tab & createdDate & tab & modifiedDate
+        return noteID & "\(fieldSep)" & noteName & "\(fieldSep)" & noteBody & "\(fieldSep)" & folderName & "\(fieldSep)" & createdDate & "\(fieldSep)" & modifiedDate
       end tell
+      \(replaceTextHandler)
       """
 
     let result = try await scriptRunner.run(script)
@@ -113,15 +154,16 @@ public actor NotesStore {
     return note
   }
 
+  // MARK: - Create / Update / Delete
+
   /// Creates a new note
   public func createNote(_ draft: NoteDraft) async throws -> NoteItem {
     let targetFolder = draft.folderName ?? "Notes"
-    let escapedFolder = targetFolder.replacingOccurrences(of: "'", with: "\\'")
-    let escapedTitle = draft.title.replacingOccurrences(of: "'", with: "\\'")
+    let escapedFolder = targetFolder.replacingOccurrences(of: "\"", with: "\\\"")
+    let escapedTitle = draft.title.replacingOccurrences(of: "\"", with: "\\\"")
 
-    // Notes.app requires HTML body, convert plain text to simple HTML
     let htmlBody = "<html><body>\(escapeHTML(draft.body))</body></html>"
-    let escapedHTML = htmlBody.replacingOccurrences(of: "'", with: "\\'")
+    let escapedHTML = htmlBody.replacingOccurrences(of: "\"", with: "\\\"")
 
     let script = """
       tell application "Notes"
@@ -134,11 +176,16 @@ public actor NotesStore {
         set noteID to id of newNote
         set noteName to name of newNote
         set noteBody to plaintext of newNote
-        set folderName to name of container of newNote
+        \(sanitizeBody)
+        set folderName to "\(escapedFolder)"
+        try
+          set folderName to name of container of newNote
+        end try
         set createdDate to creation date of newNote
         set modifiedDate to modification date of newNote
-        return noteID & tab & noteName & tab & noteBody & tab & folderName & tab & createdDate & tab & modifiedDate
+        return noteID & "\(fieldSep)" & noteName & "\(fieldSep)" & noteBody & "\(fieldSep)" & folderName & "\(fieldSep)" & createdDate & "\(fieldSep)" & modifiedDate
       end tell
+      \(replaceTextHandler)
       """
 
     let result = try await scriptRunner.run(script)
@@ -151,30 +198,29 @@ public actor NotesStore {
 
   /// Updates an existing note
   public func updateNote(id: String, _ update: NoteUpdate) async throws -> NoteItem {
-    let escapedID = id.replacingOccurrences(of: "'", with: "\\'")
+    let escapedID = id.replacingOccurrences(of: "\"", with: "\\\"")
 
-    // Build the update script based on what fields are provided
     var updateStatements: [String] = []
 
     if let title = update.title {
-      let escapedTitle = title.replacingOccurrences(of: "'", with: "\\'")
-      updateStatements.append("set name of targetNote to \"\(escapedTitle)\"")
+      let escaped = title.replacingOccurrences(of: "\"", with: "\\\"")
+      updateStatements.append("set name of targetNote to \"\(escaped)\"")
     }
 
     if let body = update.body {
       let htmlBody = "<html><body>\(escapeHTML(body))</body></html>"
-      let escapedHTML = htmlBody.replacingOccurrences(of: "'", with: "\\'")
-      updateStatements.append("set body of targetNote to \"\(escapedHTML)\"")
+      let escaped = htmlBody.replacingOccurrences(of: "\"", with: "\\\"")
+      updateStatements.append("set body of targetNote to \"\(escaped)\"")
     }
 
     if let folderName = update.folderName {
-      let escapedFolder = folderName.replacingOccurrences(of: "'", with: "\\'")
+      let escaped = folderName.replacingOccurrences(of: "\"", with: "\\\"")
       updateStatements.append("""
         try
-          set newFolder to folder "\(escapedFolder)"
+          set newFolder to folder "\(escaped)"
           move targetNote to newFolder
         on error
-          error "Folder not found: \(escapedFolder)"
+          error "Folder not found: \(escaped)"
         end try
         """)
     }
@@ -192,11 +238,16 @@ public actor NotesStore {
         set noteID to id of targetNote
         set noteName to name of targetNote
         set noteBody to plaintext of targetNote
-        set folderName to name of container of targetNote
+        \(sanitizeBody)
+        set folderName to "Notes"
+        try
+          set folderName to name of container of targetNote
+        end try
         set createdDate to creation date of targetNote
         set modifiedDate to modification date of targetNote
-        return noteID & tab & noteName & tab & noteBody & tab & folderName & tab & createdDate & tab & modifiedDate
+        return noteID & "\(fieldSep)" & noteName & "\(fieldSep)" & noteBody & "\(fieldSep)" & folderName & "\(fieldSep)" & createdDate & "\(fieldSep)" & modifiedDate
       end tell
+      \(replaceTextHandler)
       """
 
     let result = try await scriptRunner.run(script)
@@ -209,7 +260,7 @@ public actor NotesStore {
 
   /// Deletes a note by ID
   public func deleteNote(id: String) async throws {
-    let escapedID = id.replacingOccurrences(of: "'", with: "\\'")
+    let escapedID = id.replacingOccurrences(of: "\"", with: "\\\"")
     let script = """
       tell application "Notes"
         try
@@ -224,13 +275,15 @@ public actor NotesStore {
     _ = try await scriptRunner.run(script)
   }
 
+  // MARK: - Search
+
   /// Searches for notes by query
   public func search(query: String, in folder: String? = nil) async throws -> [NoteItem] {
-    let escapedQuery = query.replacingOccurrences(of: "'", with: "\\'")
+    let escapedQuery = query.replacingOccurrences(of: "\"", with: "\\\"")
     let script: String
 
     if let folder = folder {
-      let escapedFolder = folder.replacingOccurrences(of: "'", with: "\\'")
+      let escapedFolder = folder.replacingOccurrences(of: "\"", with: "\\\"")
       script = """
         tell application "Notes"
           try
@@ -238,36 +291,46 @@ public actor NotesStore {
           on error
             error "Folder not found: \(escapedFolder)"
           end try
+          set folderLabel to name of targetFolder
           set searchResults to (every note of targetFolder whose name contains "\(escapedQuery)" or plaintext contains "\(escapedQuery)")
           set output to ""
           repeat with n in searchResults
-            set noteID to id of n
-            set noteName to name of n
-            set noteBody to plaintext of n
-            set folderName to name of container of n
-            set createdDate to creation date of n
-            set modifiedDate to modification date of n
-            set output to output & noteID & tab & noteName & tab & noteBody & tab & folderName & tab & createdDate & tab & modifiedDate & linefeed
+            try
+              set noteID to id of n
+              set noteName to name of n
+              set noteBody to plaintext of n
+              \(sanitizeBody)
+              set createdDate to creation date of n
+              set modifiedDate to modification date of n
+              set output to output & noteID & "\(fieldSep)" & noteName & "\(fieldSep)" & noteBody & "\(fieldSep)" & folderLabel & "\(fieldSep)" & createdDate & "\(fieldSep)" & modifiedDate & "\(recordSep)"
+            end try
           end repeat
           return output
         end tell
+        \(replaceTextHandler)
         """
     } else {
       script = """
         tell application "Notes"
-          set searchResults to (every note whose name contains "\(escapedQuery)" or plaintext contains "\(escapedQuery)")
           set output to ""
-          repeat with n in searchResults
-            set noteID to id of n
-            set noteName to name of n
-            set noteBody to plaintext of n
-            set folderName to name of container of n
-            set createdDate to creation date of n
-            set modifiedDate to modification date of n
-            set output to output & noteID & tab & noteName & tab & noteBody & tab & folderName & tab & createdDate & tab & modifiedDate & linefeed
+          repeat with f in folders
+            set folderLabel to name of f
+            set searchResults to (every note of f whose name contains "\(escapedQuery)" or plaintext contains "\(escapedQuery)")
+            repeat with n in searchResults
+              try
+                set noteID to id of n
+                set noteName to name of n
+                set noteBody to plaintext of n
+                \(sanitizeBody)
+                set createdDate to creation date of n
+                set modifiedDate to modification date of n
+                set output to output & noteID & "\(fieldSep)" & noteName & "\(fieldSep)" & noteBody & "\(fieldSep)" & folderLabel & "\(fieldSep)" & createdDate & "\(fieldSep)" & modifiedDate & "\(recordSep)"
+              end try
+            end repeat
           end repeat
           return output
         end tell
+        \(replaceTextHandler)
         """
     }
 
@@ -277,38 +340,37 @@ public actor NotesStore {
 
   // MARK: - Private Helpers
 
-  /// Parses tab-separated folder output from AppleScript
   private func parseFolders(_ output: String) -> [NoteFolder] {
     guard !output.isEmpty else { return [] }
 
-    return output.split(separator: "\n").compactMap { line in
-      let parts = line.split(separator: "\t", omittingEmptySubsequences: false)
+    return output.components(separatedBy: recordSep).compactMap { record in
+      let trimmed = record.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !trimmed.isEmpty else { return nil }
+
+      let parts = trimmed.components(separatedBy: fieldSep)
       guard parts.count >= 3 else { return nil }
 
-      let id = String(parts[0])
-      let name = String(parts[1])
-      let count = Int(parts[2]) ?? 0
-
-      return NoteFolder(id: id, name: name, noteCount: count)
+      return NoteFolder(id: parts[0], name: parts[1], noteCount: Int(parts[2]) ?? 0)
     }
   }
 
-  /// Parses tab-separated note output from AppleScript
   private func parseNotes(_ output: String) -> [NoteItem] {
     guard !output.isEmpty else { return [] }
 
-    return output.split(separator: "\n").compactMap { line in
-      let parts = line.split(separator: "\t", omittingEmptySubsequences: false)
+    return output.components(separatedBy: recordSep).compactMap { record in
+      let trimmed = record.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !trimmed.isEmpty else { return nil }
+
+      let parts = trimmed.components(separatedBy: fieldSep)
       guard parts.count >= 6 else { return nil }
 
-      let id = String(parts[0])
-      let title = String(parts[1])
-      let body = String(parts[2])
-      let folder = String(parts[3])
-      let createdDateStr = String(parts[4])
-      let modifiedDateStr = String(parts[5])
+      let id = parts[0]
+      let title = parts[1]
+      let body = parts[2].replacingOccurrences(of: newlinePlaceholder, with: "\n")
+      let folder = parts[3]
+      let createdDateStr = parts[4]
+      let modifiedDateStr = parts[5]
 
-      // Parse dates from AppleScript format
       guard let createdDate = DateFormatting.parseAppleScriptDate(createdDateStr),
             let modifiedDate = DateFormatting.parseAppleScriptDate(modifiedDateStr)
       else {
@@ -326,7 +388,6 @@ public actor NotesStore {
     }
   }
 
-  /// Escapes HTML special characters
   private func escapeHTML(_ text: String) -> String {
     return text
       .replacingOccurrences(of: "&", with: "&amp;")

@@ -52,17 +52,24 @@ enum DateFormatting {
 
   /// Creates date formatters for AppleScript date parsing
   private static func appleScriptDateFormatters() -> [DateFormatter] {
-    let formats = [
-      "EEEE, MMMM d, yyyy 'at' h:mm:ss a",  // "Thursday, February 8, 2024 at 3:30:45 PM"
-      "EEEE, MMMM d, yyyy 'at' h:mm a",
-      "MMMM d, yyyy 'at' h:mm:ss a",
-      "MMMM d, yyyy 'at' h:mm a",
-      "yyyy-MM-dd HH:mm:ss",
+    // AppleScript returns dates in the system locale format.
+    // Use system locale first, then English fallback.
+    let localizedFormats: [(String, Locale)] = [
+      // Chinese: "2026年2月8日 星期六 15:38:05"
+      ("yyyy年M月d日 EEEE HH:mm:ss", Locale.current),
+      ("yyyy年M月d日 HH:mm:ss", Locale.current),
+      // English: "Thursday, February 8, 2024 at 3:30:45 PM"
+      ("EEEE, MMMM d, yyyy 'at' h:mm:ss a", Locale(identifier: "en_US_POSIX")),
+      ("EEEE, MMMM d, yyyy 'at' h:mm a", Locale(identifier: "en_US_POSIX")),
+      ("MMMM d, yyyy 'at' h:mm:ss a", Locale(identifier: "en_US_POSIX")),
+      ("MMMM d, yyyy 'at' h:mm a", Locale(identifier: "en_US_POSIX")),
+      // Generic
+      ("yyyy-MM-dd HH:mm:ss", Locale(identifier: "en_US_POSIX")),
     ]
 
-    return formats.map { format in
+    return localizedFormats.map { (format, locale) in
       let formatter = DateFormatter()
-      formatter.locale = Locale(identifier: "en_US_POSIX")
+      formatter.locale = locale
       formatter.timeZone = TimeZone.current
       formatter.dateFormat = format
       return formatter
