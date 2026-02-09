@@ -73,8 +73,9 @@ struct DateFormattingTests {
 
     #expect(parsed != nil)
     if let parsed = parsed {
-      let calendar = Calendar(identifier: .gregorian)
-      let components = calendar.dateComponents([.year, .month, .day], from: parsed)
+      var utcCalendar = Calendar(identifier: .gregorian)
+      utcCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
+      let components = utcCalendar.dateComponents([.year, .month, .day], from: parsed)
       #expect(components.year == 2023)
       #expect(components.month == 11)
       #expect(components.day == 14)

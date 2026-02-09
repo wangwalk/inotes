@@ -23,13 +23,12 @@ struct NoteFilterTests {
   }
 
   private func sampleNotes(now: Date) -> [NoteItem] {
-    let today = calendar.startOfDay(for: now)
-    let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
-    let threeDaysAgo = calendar.date(byAdding: .day, value: -3, to: today)!
-    let weekAgo = calendar.date(byAdding: .day, value: -7, to: today)!
-    let twoWeeksAgo = calendar.date(byAdding: .day, value: -14, to: today)!
-    let monthAgo = calendar.date(byAdding: .day, value: -30, to: today)!
-    let twoMonthsAgo = calendar.date(byAdding: .day, value: -60, to: today)!
+    let yesterday = calendar.date(byAdding: .day, value: -1, to: now)!
+    let threeDaysAgo = calendar.date(byAdding: .day, value: -3, to: now)!
+    let weekAgo = calendar.date(byAdding: .day, value: -7, to: now)!
+    let twoWeeksAgo = calendar.date(byAdding: .day, value: -14, to: now)!
+    let monthAgo = calendar.date(byAdding: .day, value: -30, to: now)!
+    let twoMonthsAgo = calendar.date(byAdding: .day, value: -60, to: now)!
 
     return [
       makeNote(id: "1", title: "Today's note", modificationDate: now),
@@ -48,7 +47,7 @@ struct NoteFilterTests {
   func todayMatchesToday() {
     let now = Date(timeIntervalSince1970: 1_700_000_000)
     let notes = sampleNotes(now: now)
-    let result = NoteFilter.today.apply(to: notes, calendar: calendar)
+    let result = NoteFilter.today.apply(to: notes, now: now, calendar: calendar)
 
     #expect(result.count == 1)
     #expect(result.first?.title == "Today's note")
@@ -60,7 +59,7 @@ struct NoteFilterTests {
     let yesterday = calendar.date(byAdding: .day, value: -1, to: now)!
     let note = makeNote(id: "old", title: "Old note", modificationDate: yesterday)
 
-    #expect(NoteFilter.today.matches(note, calendar: calendar) == false)
+    #expect(NoteFilter.today.matches(note, now: now, calendar: calendar) == false)
   }
 
   @Test("Today filter at midnight boundary")
@@ -70,7 +69,7 @@ struct NoteFilterTests {
     let note = makeNote(id: "midnight", title: "Midnight note", modificationDate: midnight)
 
     // Should match since it's the same day
-    #expect(NoteFilter.today.matches(note, calendar: calendar) == true)
+    #expect(NoteFilter.today.matches(note, now: now, calendar: calendar) == true)
   }
 
   @Test("Today filter just before midnight")
@@ -81,7 +80,7 @@ struct NoteFilterTests {
     let note = makeNote(id: "late", title: "Late note", modificationDate: justBeforeMidnight)
 
     // Should match since it's still the same day
-    #expect(NoteFilter.today.matches(note, calendar: calendar) == true)
+    #expect(NoteFilter.today.matches(note, now: now, calendar: calendar) == true)
   }
 
   // MARK: - .week Filter Tests
@@ -90,7 +89,7 @@ struct NoteFilterTests {
   func weekMatchesSevenDays() {
     let now = Date(timeIntervalSince1970: 1_700_000_000)
     let notes = sampleNotes(now: now)
-    let result = NoteFilter.week.apply(to: notes, calendar: calendar)
+    let result = NoteFilter.week.apply(to: notes, now: now, calendar: calendar)
 
     // Should include: today, yesterday, 3 days ago, week ago
     #expect(result.count == 4)
@@ -102,7 +101,7 @@ struct NoteFilterTests {
     let eightDaysAgo = calendar.date(byAdding: .day, value: -8, to: now)!
     let note = makeNote(id: "old", title: "Old note", modificationDate: eightDaysAgo)
 
-    #expect(NoteFilter.week.matches(note, calendar: calendar) == false)
+    #expect(NoteFilter.week.matches(note, now: now, calendar: calendar) == false)
   }
 
   @Test("Week filter exactly 7 days ago")
@@ -111,7 +110,7 @@ struct NoteFilterTests {
     let exactlyWeekAgo = calendar.date(byAdding: .weekOfYear, value: -1, to: now)!
     let note = makeNote(id: "week", title: "Week note", modificationDate: exactlyWeekAgo)
 
-    #expect(NoteFilter.week.matches(note, calendar: calendar) == true)
+    #expect(NoteFilter.week.matches(note, now: now, calendar: calendar) == true)
   }
 
   // MARK: - .recent Filter Tests
@@ -120,7 +119,7 @@ struct NoteFilterTests {
   func recentMatchesThirtyDays() {
     let now = Date(timeIntervalSince1970: 1_700_000_000)
     let notes = sampleNotes(now: now)
-    let result = NoteFilter.recent.apply(to: notes, calendar: calendar)
+    let result = NoteFilter.recent.apply(to: notes, now: now, calendar: calendar)
 
     // Should include: today, yesterday, 3 days, week, 2 weeks, month
     #expect(result.count == 6)
@@ -132,7 +131,7 @@ struct NoteFilterTests {
     let thirtyOneDaysAgo = calendar.date(byAdding: .day, value: -31, to: now)!
     let note = makeNote(id: "old", title: "Old note", modificationDate: thirtyOneDaysAgo)
 
-    #expect(NoteFilter.recent.matches(note, calendar: calendar) == false)
+    #expect(NoteFilter.recent.matches(note, now: now, calendar: calendar) == false)
   }
 
   @Test("Recent filter exactly 30 days ago")
@@ -141,7 +140,7 @@ struct NoteFilterTests {
     let exactlyThirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now)!
     let note = makeNote(id: "month", title: "Month note", modificationDate: exactlyThirtyDaysAgo)
 
-    #expect(NoteFilter.recent.matches(note, calendar: calendar) == true)
+    #expect(NoteFilter.recent.matches(note, now: now, calendar: calendar) == true)
   }
 
   // MARK: - .all Filter Tests
@@ -150,7 +149,7 @@ struct NoteFilterTests {
   func allMatchesEverything() {
     let now = Date(timeIntervalSince1970: 1_700_000_000)
     let notes = sampleNotes(now: now)
-    let result = NoteFilter.all.apply(to: notes, calendar: calendar)
+    let result = NoteFilter.all.apply(to: notes, now: now, calendar: calendar)
 
     #expect(result.count == notes.count)
     #expect(result.count == 7)
@@ -162,7 +161,7 @@ struct NoteFilterTests {
     let veryOld = calendar.date(byAdding: .year, value: -5, to: now)!
     let note = makeNote(id: "ancient", title: "Ancient note", modificationDate: veryOld)
 
-    #expect(NoteFilter.all.matches(note, calendar: calendar) == true)
+    #expect(NoteFilter.all.matches(note, now: now, calendar: calendar) == true)
   }
 
   // MARK: - NoteFiltering Tests

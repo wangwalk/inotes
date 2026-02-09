@@ -8,9 +8,7 @@ public enum NoteFilter: String, CaseIterable, Sendable {
   case recent
 
   /// Checks if a note matches the filter criteria
-  public func matches(_ note: NoteItem, calendar: Calendar = .current) -> Bool {
-    let now = Date()
-
+  public func matches(_ note: NoteItem, now: Date = Date(), calendar: Calendar = .current) -> Bool {
     switch self {
     case .all:
       return true
@@ -30,8 +28,8 @@ public enum NoteFilter: String, CaseIterable, Sendable {
   }
 
   /// Applies the filter to a collection of notes
-  public func apply(to notes: [NoteItem], calendar: Calendar = .current) -> [NoteItem] {
-    return notes.filter { matches($0, calendar: calendar) }
+  public func apply(to notes: [NoteItem], now: Date = Date(), calendar: Calendar = .current) -> [NoteItem] {
+    return notes.filter { matches($0, now: now, calendar: calendar) }
   }
 }
 

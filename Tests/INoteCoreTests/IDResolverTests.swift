@@ -156,16 +156,35 @@ struct IDResolverTests {
 
   @Test("Ambiguous prefix multiple matches")
   func ambiguousPrefixMultipleMatches() {
-    // Both first and second notes start with "abc"
+    // Create notes that share a 4-char prefix to trigger ambiguity
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let ambiguousNotes = [
+      NoteItem(
+        id: "abcd1234-5678-90ab-cdef-ghijklmnopqr",
+        title: "First Note",
+        body: "Content 1",
+        folder: "Work",
+        creationDate: now,
+        modificationDate: now
+      ),
+      NoteItem(
+        id: "abcd5678-9012-3456-7890-abcdefghijkl",
+        title: "Second Note",
+        body: "Content 2",
+        folder: "Work",
+        creationDate: now,
+        modificationDate: now
+      ),
+    ]
     let error = INotesError.ambiguousIdentifier(
-      "abc",
+      "abcd",
       matches: [
         "abcd1234-5678-90ab-cdef-ghijklmnopqr",
-        "abce5678-9012-3456-7890-abcdefghijkl",
+        "abcd5678-9012-3456-7890-abcdefghijkl",
       ]
     )
     #expect(throws: error) {
-      _ = try IDResolver.resolve(["abc"], from: sampleNotes())
+      _ = try IDResolver.resolve(["abcd"], from: ambiguousNotes)
     }
   }
 
@@ -174,8 +193,8 @@ struct IDResolverTests {
     #expect(throws: INotesError.noteNotFound("zzzz")) {
       _ = try IDResolver.resolve(["zzzz"], from: sampleNotes())
     }
-    #expect(throws: INotesError.noteNotFound("1234")) {
-      _ = try IDResolver.resolve(["1234"], from: sampleNotes())
+    #expect(throws: INotesError.noteNotFound("qqqq")) {
+      _ = try IDResolver.resolve(["qqqq"], from: sampleNotes())
     }
   }
 
