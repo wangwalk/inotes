@@ -6,3 +6,4 @@ DerivedData/
 .swiftpm/
 bin/
 *.xcodeproj
+.agents/

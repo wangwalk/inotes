@@ -37,6 +37,7 @@ inotes                    # show recent iCloud notes
 inotes accounts           # list all accounts
 inotes show all           # all iCloud notes
 inotes folders            # list folders with note counts
+inotes mkfolder Projects  # create a folder
 inotes read 1             # read full note by index
 inotes search "meeting"   # search by title or content
 ```
@@ -54,11 +55,23 @@ inotes show --folder Work             # notes in a specific folder
 inotes show recent --limit 10         # limit results
 ```
 
+Notes in the system “Recently Deleted” folder are excluded.
+
 ### folders — List folders
 
 ```bash
 inotes folders                        # all folders with note counts
 inotes folders --json                 # JSON output
+```
+
+The system “Recently Deleted” folder is excluded.
+
+### mkfolder — Create a folder
+
+```bash
+inotes mkfolder Projects
+inotes mkfolder Work --account Exchange
+inotes mkfolder Ideas --json
 ```
 
 ### accounts — List accounts
@@ -108,10 +121,23 @@ inotes search "quarterly review"
 inotes search "TODO" --folder Work --limit 10
 ```
 
+Notes in the system “Recently Deleted” folder are excluded.
+
 ### status — Check permission
 
 ```bash
 inotes status                         # check automation permission
+```
+
+```bash
+inotes status --json
+```
+
+```json
+{
+  "authorized" : true,
+  "automationPermission" : "granted"
+}
 ```
 
 ## Multi-account support
@@ -133,7 +159,9 @@ inotes show all --all-accounts
 inotes folders --all-accounts
 ```
 
-The `-a`/`--account` option is available on all commands.
+The `-a`/`--account` option is accepted on all commands. It affects commands that fetch notes/folders (e.g. `show`,
+`folders`, `read`, `add`, `edit`, `delete`, `search`, `mkfolder`); for `accounts` and `status` it is currently
+ignored.
 
 ## Note identification
 
@@ -207,6 +235,10 @@ These options are available on all commands:
 
 inotes uses AppleScript (`osascript`) to communicate with Notes.app. On first run, macOS will prompt you to allow Automation access.
 
+## Privacy
+
+inotes runs locally and does not send your notes to any server. It uses `osascript` to query Notes.app and prints results to stdout.
+
 If you see "Permission denied" errors:
 
 1. Open **System Settings > Privacy & Security > Automation**.
@@ -221,7 +253,7 @@ The reusable Swift core lives in `Sources/INotesCore` and can be consumed as a l
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/wangwalk/inotes.git", from: "0.1.0")
+.package(url: "https://github.com/wangwalk/inotes.git", from: "0.1.1")
 
 // target dependency
 .product(name: "INotesCore", package: "inotes")

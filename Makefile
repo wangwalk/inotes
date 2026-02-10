@@ -8,7 +8,11 @@ format:
 
 lint:
 	$(SWIFT_FORMAT) lint --recursive Sources Tests Package.swift
-	$(SWIFTLINT) lint --quiet
+	@if command -v $(SWIFTLINT) >/dev/null 2>&1; then \
+		$(SWIFTLINT) lint --quiet; \
+	else \
+		echo "swiftlint not installed; skipping swiftlint (install with: brew install swiftlint)"; \
+	fi
 
 test:
 	@./scripts/generate-version.sh
