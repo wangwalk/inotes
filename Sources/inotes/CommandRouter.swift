@@ -13,6 +13,7 @@ struct CommandRouter {
     self.specs = [
       ShowCommand.spec,
       FoldersCommand.spec,
+      MkfolderCommand.spec,
       AccountsCommand.spec,
       ReadCommand.spec,
       AddCommand.spec,
