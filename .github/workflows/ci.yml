@@ -8,7 +8,8 @@ on:
 
 jobs:
   test:
-    runs-on: macos-14
+    # Swift 6 toolchain is required (Package.swift uses swift-tools-version 6.0)
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
 
