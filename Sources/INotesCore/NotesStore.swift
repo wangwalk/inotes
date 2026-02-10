@@ -6,6 +6,7 @@ private let fieldSep = "<<F>>"
 private let recordSep = "<<R>>"
 private let newlinePlaceholder = "<<NL>>"
 
+
 /// Helper AppleScript snippet that sanitizes a note's plaintext body.
 /// Replaces newlines with a placeholder so they don't break record parsing.
 private let sanitizeBody = """
@@ -80,6 +81,47 @@ public actor NotesStore {
     return parseFolders(result)
   }
 
+  /// Creates a new folder in Notes
+  public func createFolder(name: String, in accountName: String? = nil) async throws -> NoteFolder {
+    let escapedName = name.replacingOccurrences(of: "\"", with: "\\\"")
+    let script: String
+
+    if let accountName = accountName {
+      let escapedAccount = accountName.replacingOccurrences(of: "\"", with: "\\\"")
+      script = """
+        tell application "Notes"
+          try
+            set targetAccount to account "\(escapedAccount)"
+          on error
+            error "Account not found: \(escapedAccount)"
+          end try
+          set newFolder to make new folder at targetAccount with properties {name:"\(escapedName)"}
+          set folderID to id of newFolder
+          set folderName to name of newFolder
+          set folderCount to count of notes in newFolder
+          return folderID & "\(fieldSep)" & folderName & "\(fieldSep)" & folderCount
+        end tell
+        """
+    } else {
+      script = """
+        tell application "Notes"
+          set newFolder to make new folder with properties {name:"\(escapedName)"}
+          set folderID to id of newFolder
+          set folderName to name of newFolder
+          set folderCount to count of notes in newFolder
+          return folderID & "\(fieldSep)" & folderName & "\(fieldSep)" & folderCount
+        end tell
+        """
+    }
+
+    let result = try await scriptRunner.run(script)
+    let folders = parseFolders(result)
+    guard let folder = folders.first else {
+      throw INotesError.operationFailed("Failed to create folder")
+    }
+    return folder
+  }
+
   // MARK: - Notes
 
   /// Lists notes in a folder (or all notes if folder is nil)
@@ -121,20 +163,22 @@ public actor NotesStore {
           set output to ""
           set counter to 0
           repeat with f in folders
-            set folderName to name of f
-            repeat with n in notes of f
-              if counter \u{2265} \(limit) then exit repeat
-              try
-                set noteID to id of n
-                set noteName to name of n
-                set noteBody to plaintext of n
-                \(sanitizeBody)
-                set createdDate to creation date of n
-                set modifiedDate to modification date of n
-                set output to output & noteID & "\(fieldSep)" & noteName & "\(fieldSep)" & noteBody & "\(fieldSep)" & folderName & "\(fieldSep)" & createdDate & "\(fieldSep)" & modifiedDate & "\(recordSep)"
-                set counter to counter + 1
-              end try
-            end repeat
+            try
+              set folderName to name of f
+              repeat with n in notes of f
+                if counter \u{2265} \(limit) then exit repeat
+                try
+                  set noteID to id of n
+                  set noteName to name of n
+                  set noteBody to plaintext of n
+                  \(sanitizeBody)
+                  set createdDate to creation date of n
+                  set modifiedDate to modification date of n
+                  set output to output & noteID & "\(fieldSep)" & noteName & "\(fieldSep)" & noteBody & "\(fieldSep)" & folderName & "\(fieldSep)" & createdDate & "\(fieldSep)" & modifiedDate & "\(recordSep)"
+                  set counter to counter + 1
+                end try
+              end repeat
+            end try
             if counter \u{2265} \(limit) then exit repeat
           end repeat
           return output
@@ -340,19 +384,21 @@ public actor NotesStore {
         tell application "Notes"
           set output to ""
           repeat with f in folders
-            set folderLabel to name of f
-            set searchResults to (every note of f whose name contains "\(escapedQuery)" or plaintext contains "\(escapedQuery)")
-            repeat with n in searchResults
-              try
-                set noteID to id of n
-                set noteName to name of n
-                set noteBody to plaintext of n
-                \(sanitizeBody)
-                set createdDate to creation date of n
-                set modifiedDate to modification date of n
-                set output to output & noteID & "\(fieldSep)" & noteName & "\(fieldSep)" & noteBody & "\(fieldSep)" & folderLabel & "\(fieldSep)" & createdDate & "\(fieldSep)" & modifiedDate & "\(recordSep)"
-              end try
-            end repeat
+            try
+              set folderLabel to name of f
+              set searchResults to (every note of f whose name contains "\(escapedQuery)" or plaintext contains "\(escapedQuery)")
+              repeat with n in searchResults
+                try
+                  set noteID to id of n
+                  set noteName to name of n
+                  set noteBody to plaintext of n
+                  \(sanitizeBody)
+                  set createdDate to creation date of n
+                  set modifiedDate to modification date of n
+                  set output to output & noteID & "\(fieldSep)" & noteName & "\(fieldSep)" & noteBody & "\(fieldSep)" & folderLabel & "\(fieldSep)" & createdDate & "\(fieldSep)" & modifiedDate & "\(recordSep)"
+                end try
+              end repeat
+            end try
           end repeat
           return output
         end tell

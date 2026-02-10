@@ -25,9 +25,9 @@ struct NoteFilterTests {
   private func sampleNotes(now: Date) -> [NoteItem] {
     let yesterday = calendar.date(byAdding: .day, value: -1, to: now)!
     let threeDaysAgo = calendar.date(byAdding: .day, value: -3, to: now)!
-    let weekAgo = calendar.date(byAdding: .day, value: -7, to: now)!
+    let weekAgo = calendar.date(byAdding: .day, value: -6, to: now)!
     let twoWeeksAgo = calendar.date(byAdding: .day, value: -14, to: now)!
-    let monthAgo = calendar.date(byAdding: .day, value: -30, to: now)!
+    let monthAgo = calendar.date(byAdding: .day, value: -29, to: now)!
     let twoMonthsAgo = calendar.date(byAdding: .day, value: -60, to: now)!
 
     return [
@@ -68,7 +68,6 @@ struct NoteFilterTests {
     let midnight = calendar.startOfDay(for: now)
     let note = makeNote(id: "midnight", title: "Midnight note", modificationDate: midnight)
 
-    // Should match since it's the same day
     #expect(NoteFilter.today.matches(note, now: now, calendar: calendar) == true)
   }
 
@@ -79,7 +78,6 @@ struct NoteFilterTests {
     let justBeforeMidnight = calendar.date(byAdding: .second, value: -1, to: nextDay)!
     let note = makeNote(id: "late", title: "Late note", modificationDate: justBeforeMidnight)
 
-    // Should match since it's still the same day
     #expect(NoteFilter.today.matches(note, now: now, calendar: calendar) == true)
   }
 

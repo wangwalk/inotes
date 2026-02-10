@@ -14,7 +14,7 @@ enum StatusCommand {
         "inotes status --json",
       ]
     ) { _, runtime in
-      let hasPermission = checkNotesAutomationPermission()
+      let hasPermission = await checkNotesAutomationPermission()
 
       switch runtime.outputFormat {
       case .standard:
@@ -32,11 +32,11 @@ enum StatusCommand {
         Swift.print(hasPermission ? "granted" : "denied")
       case .json:
         struct StatusPayload: Codable {
-          let automation_permission: String
+          let automationPermission: String
           let authorized: Bool
         }
         let payload = StatusPayload(
-          automation_permission: hasPermission ? "granted" : "denied",
+          automationPermission: hasPermission ? "granted" : "denied",
           authorized: hasPermission
         )
         let encoder = JSONEncoder()
@@ -52,10 +52,17 @@ enum StatusCommand {
     }
   }
 
-  private static func checkNotesAutomationPermission() -> Bool {
-    // Basic permission check - in a real implementation this would
-    // interact with the actual Notes.app automation permissions
-    // For now, we'll return true as a placeholder
-    return true
+  private static func checkNotesAutomationPermission() async -> Bool {
+    let runner = ScriptRunner()
+    do {
+      _ = try await runner.run("""
+        tell application "Notes"
+          return count of folders
+        end tell
+        """)
+      return true
+    } catch {
+      return false
+    }
   }
 }

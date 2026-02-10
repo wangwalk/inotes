@@ -188,6 +188,29 @@ struct IDResolverTests {
     }
   }
 
+  @Test("Ambiguous prefix with sufficient length")
+  func ambiguousPrefixSufficientLength() {
+    let now = Date(timeIntervalSince1970: 1_700_000_000)
+    let notes = [
+      NoteItem(
+        id: "abcd1111-0000-0000-0000-000000000000", title: "Note A", body: "", folder: "Test",
+        creationDate: now, modificationDate: now),
+      NoteItem(
+        id: "abcd2222-0000-0000-0000-000000000000", title: "Note B", body: "", folder: "Test",
+        creationDate: now, modificationDate: now),
+    ]
+    #expect(
+      throws: INotesError.ambiguousIdentifier(
+        "abcd",
+        matches: [
+          "abcd1111-0000-0000-0000-000000000000",
+          "abcd2222-0000-0000-0000-000000000000",
+        ])
+    ) {
+      _ = try IDResolver.resolve(["abcd"], from: notes)
+    }
+  }
+
   @Test("Note not found with valid length prefix")
   func noteNotFoundValidLengthPrefix() {
     #expect(throws: INotesError.noteNotFound("zzzz")) {

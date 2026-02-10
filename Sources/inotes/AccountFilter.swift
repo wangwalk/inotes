@@ -12,22 +12,22 @@ enum AccountFilter {
     store: NotesStore,
     notes: [NoteItem]
   ) async throws -> [NoteItem] {
+    var result: [NoteItem]
     if let accountName = runtime.accountName {
       let accounts = try await store.accounts()
-      let filtered = AccountMatching.filterNotes(notes, byAccountName: accountName, accounts: accounts)
-      if filtered.isEmpty && !notes.isEmpty {
-        // Check if the account name matches any account at all
+      result = AccountMatching.filterNotes(notes, byAccountName: accountName, accounts: accounts)
+      if result.isEmpty && !notes.isEmpty {
         let hasMatch = accounts.contains { $0.name.lowercased().contains(accountName.lowercased()) }
         if !hasMatch {
           throw INotesError.accountNotFound(accountName)
         }
       }
-      return filtered
     } else if runtime.allAccounts {
-      return notes
+      result = notes
     } else {
-      return notes.filter(\.isICloud)
+      result = notes.filter(\.isICloud)
     }
+    return result.filter { !$0.isDeleted }
   }
 
   static func apply(
@@ -35,20 +35,21 @@ enum AccountFilter {
     store: NotesStore,
     folders: [NoteFolder]
   ) async throws -> [NoteFolder] {
+    var result: [NoteFolder]
     if let accountName = runtime.accountName {
       let accounts = try await store.accounts()
-      let filtered = AccountMatching.filterFolders(folders, byAccountName: accountName, accounts: accounts)
-      if filtered.isEmpty && !folders.isEmpty {
+      result = AccountMatching.filterFolders(folders, byAccountName: accountName, accounts: accounts)
+      if result.isEmpty && !folders.isEmpty {
         let hasMatch = accounts.contains { $0.name.lowercased().contains(accountName.lowercased()) }
         if !hasMatch {
           throw INotesError.accountNotFound(accountName)
         }
       }
-      return filtered
     } else if runtime.allAccounts {
-      return folders
+      result = folders
     } else {
-      return folders.filter(\.isICloud)
+      result = folders.filter(\.isICloud)
     }
+    return result.filter { !TrashFolder.isTrashName($0.name) }
   }
 }

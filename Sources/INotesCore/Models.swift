@@ -28,6 +28,9 @@ public struct NoteItem: Codable, Sendable, Equatable, Identifiable {
   /// Whether this note belongs to the local iCloud account (vs IMAP/Exchange)
   public var isICloud: Bool { id.contains("/ICNote/") }
 
+  /// Whether this note is in the "Recently Deleted" trash folder
+  public var isDeleted: Bool { TrashFolder.isTrashName(folder) }
+
   /// The account UUID prefix extracted from the note ID
   public var accountUUID: String? { AccountMatching.extractUUID(from: id) }
 }
