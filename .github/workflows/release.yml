@@ -111,11 +111,16 @@ jobs:
           echo "📦 Package: ${{ steps.package.outputs.tarball }}"
           echo "🔒 SHA256: ${{ steps.package.outputs.sha256 }}"
           echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          echo ""
+          echo "📝 Next step: Update Homebrew Formula"
+          echo "   Visit: https://github.com/wangwalk/homebrew-tap"
+          echo "   SHA256: ${{ steps.package.outputs.sha256 }}"
 
   update-homebrew:
     needs: build-and-release
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # 只有配置了 HOMEBREW_TAP_TOKEN 才运行
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && secrets.HOMEBREW_TAP_TOKEN != ''
     steps:
       - name: Extract version and metadata
         id: meta
