@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.2 — 2026-02-11
+
+### Added
+- CI automation: auto-run tests on push and PR
+- Release automation: auto-build and publish on tag push
+- Universal binary support (arm64 + x86_64 in one file)
+
+### Changed
+- Removed development-only files from repository
+- Improved project structure for open source
+
 ## 0.1.1 — 2026-02-10
 
 ### Added
