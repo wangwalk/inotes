@@ -1,0 +1,117 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version: $VERSION"
+
+      - name: Verify Swift toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Build universal binary
+        run: make build
+
+      - name: Verify binary architecture
+        run: |
+          file bin/inotes
+          lipo -info bin/inotes
+
+      - name: Package binary
+        id: package
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          TARBALL="inotes-${VERSION}-universal-apple-darwin.tar.gz"
+          tar czf "$TARBALL" -C bin inotes
+          
+          # Calculate SHA256
+          SHA256=$(shasum -a 256 "$TARBALL" | awk '{print $1}')
+          
+          echo "tarball=$TARBALL" >> $GITHUB_OUTPUT
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          
+          echo "📦 Package: $TARBALL"
+          echo "🔒 SHA256: $SHA256"
+          ls -lh "$TARBALL"
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          SHA256=${{ steps.package.outputs.sha256 }}
+          TARBALL=${{ steps.package.outputs.tarball }}
+          
+          cat > release_notes.md << EOF
+          ## Installation
+
+          ### Via Homebrew
+          \`\`\`bash
+          brew install wangwalk/tap/inotes
+          \`\`\`
+
+          ### Manual Download
+          Download the universal binary (supports both Apple Silicon and Intel):
+
+          \`\`\`bash
+          curl -LO https://github.com/wangwalk/inotes/releases/download/v${VERSION}/${TARBALL}
+          tar xzf ${TARBALL}
+          sudo cp inotes /usr/local/bin/
+          sudo chmod +x /usr/local/bin/inotes
+          \`\`\`
+
+          ### Verify Installation
+          \`\`\`bash
+          inotes --version  # Should show: ${VERSION}
+          shasum -a 256 ${TARBALL}
+          # Expected: ${SHA256}
+          \`\`\`
+
+          ## Requirements
+          - macOS 14+ (Sonoma or later)
+          - Automation permission for Notes.app
+
+          ## Changes
+          See [CHANGELOG.md](https://github.com/wangwalk/inotes/blob/main/CHANGELOG.md) for details.
+          EOF
+          
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.package.outputs.tarball }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "✅ Release created successfully!"
+          echo ""
+          echo "📦 Package: ${{ steps.package.outputs.tarball }}"
+          echo "🔒 SHA256: ${{ steps.package.outputs.sha256 }}"
+          echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          echo ""
+          echo "📝 Next steps:"
+          echo "1. Update Homebrew Formula with new version and SHA256"
+          echo "2. Update ClawHub skill if needed"
